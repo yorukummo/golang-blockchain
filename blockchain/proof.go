@@ -45,10 +45,10 @@ func NewProof(b *Block) *ProofOfWork {
 func (pow *ProofOfWork) InitData(nonce int) []byte {
 	data := bytes.Join(
 		[][]byte{
-			pow.Block.PrevHash,       // Хэш предыдущего блока
-			pow.Block.Data,           // Данные текущего блока
-			ToHex(int64(nonce)),      // Счетчик (nonce) в виде байтов
-			ToHex(int64(Difficulty)), // Сложность в виде байтов
+			pow.Block.PrevHash,           // Хэш предыдущего блока
+			pow.Block.HashTransactions(), // Данные текущего блока
+			ToHex(int64(nonce)),          // Счетчик (nonce) в виде байтов
+			ToHex(int64(Difficulty)),     // Сложность в виде байтов
 		},
 		[]byte{},
 	)

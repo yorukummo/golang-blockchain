@@ -2,21 +2,34 @@ package blockchain
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
 	"log"
 )
 
 // Определение структуры Block, которая представляет блок в цепочке.
 type Block struct {
-	Hash     []byte // Хэш блока
-	Data     []byte // Данные, хранящиеся в блоке
-	PrevHash []byte // Хэш предыдущего блока
-	Nonce    int
+	Hash        []byte // Хэш блока
+	Transaction []*Transaction
+	PrevHash    []byte // Хэш предыдущего блока
+	Nonce       int
+}
+
+func (b *Block) HashTransactions() []byte {
+	var txHashes [][]byte
+	var txHash [32]byte
+
+	for _, tx := range b.Transaction {
+		txHashes = append(txHashes, tx.ID)
+	}
+	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
+
+	return txHash[:]
 }
 
 // Функция CreateBlock создает новый блок с заданными данными и хэшом предыдущего блока.
-func CreateBlock(data string, prevHash []byte) *Block {
-	block := &Block{[]byte{}, []byte(data), prevHash, 0}
+func CreateBlock(txs []*Transaction, prevHash []byte) *Block {
+	block := &Block{[]byte{}, txs, prevHash, 0}
 	pow := NewProof(block)
 	nonce, hash := pow.Run()
 
@@ -27,8 +40,8 @@ func CreateBlock(data string, prevHash []byte) *Block {
 }
 
 // Функция Genesis создает первый блок (генезис-блок) без данных и без предыдущего хэша.
-func Genesis() *Block {
-	return CreateBlock("Genesis", []byte{})
+func Genesis(coinbase *Transaction) *Block {
+	return CreateBlock([]*Transaction{coinbase}, []byte{})
 }
 
 func (b *Block) Serialize() []byte {
