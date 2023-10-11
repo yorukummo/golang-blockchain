@@ -25,7 +25,7 @@ import (
 // ----------------------------------------------
 
 // Статическая сложность, в наст блокчейне со временем сложность наростает
-const Difficulty = 12
+const Difficulty = 18
 
 type ProofOfWork struct {
 	Block  *Block

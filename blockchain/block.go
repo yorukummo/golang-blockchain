@@ -1,9 +1,10 @@
 package blockchain
 
-// Определение структуры BlockChain, которая представляет собой цепочку блоков.
-type BlockChain struct {
-	Blocks []*Block
-}
+import (
+	"bytes"
+	"encoding/gob"
+	"log"
+)
 
 // Определение структуры Block, которая представляет блок в цепочке.
 type Block struct {
@@ -25,19 +26,36 @@ func CreateBlock(data string, prevHash []byte) *Block {
 	return block
 }
 
-// Метод AddBlock добавляет новый блок в цепочку, основываясь на предыдущем блоке.
-func (chain *BlockChain) AddBlock(data string) {
-	prevBlock := chain.Blocks[len(chain.Blocks)-1]
-	new := CreateBlock(data, prevBlock.Hash)
-	chain.Blocks = append(chain.Blocks, new)
-}
-
 // Функция Genesis создает первый блок (генезис-блок) без данных и без предыдущего хэша.
 func Genesis() *Block {
 	return CreateBlock("Genesis", []byte{})
 }
 
-// Функция InitBlockChain инициализирует новую цепочку блоков, начиная с генезис-блока.
-func InitBlockChain() *BlockChain {
-	return &BlockChain{[]*Block{Genesis()}}
+func (b *Block) Serialize() []byte {
+	var res bytes.Buffer
+	encoder := gob.NewEncoder(&res)
+
+	err := encoder.Encode(b)
+
+	Handle(err)
+
+	return res.Bytes()
+}
+
+func Deserialize(data []byte) *Block {
+	var block Block
+
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+
+	err := decoder.Decode(&block)
+
+	Handle(err)
+
+	return &block
+}
+
+func Handle(err error) {
+	if err != nil {
+		log.Panic(err)
+	}
 }
