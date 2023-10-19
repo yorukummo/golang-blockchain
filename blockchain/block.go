@@ -27,7 +27,7 @@ func (b *Block) HashTransactions() []byte {
 	return txHash[:]
 }
 
-// Функция CreateBlock создает новый блок с заданными данными и хэшом предыдущего блока.
+// CreateBlock создает новый блок с заданными данными и хэшом предыдущего блока.
 func CreateBlock(txs []*Transaction, prevHash []byte) *Block {
 	block := &Block{[]byte{}, txs, prevHash, 0}
 	pow := NewProof(block)
@@ -39,7 +39,7 @@ func CreateBlock(txs []*Transaction, prevHash []byte) *Block {
 	return block
 }
 
-// Функция Genesis создает первый блок (генезис-блок) без данных и без предыдущего хэша.
+// Genesis создает первый блок (генезис-блок) без данных и без предыдущего хэша.
 func Genesis(coinbase *Transaction) *Block {
 	return CreateBlock([]*Transaction{coinbase}, []byte{})
 }
@@ -67,6 +67,7 @@ func Deserialize(data []byte) *Block {
 	return &block
 }
 
+// Handle используется для обработки ошибок и вывода их в журнал.
 func Handle(err error) {
 	if err != nil {
 		log.Panic(err)
