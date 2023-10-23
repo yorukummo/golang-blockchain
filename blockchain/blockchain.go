@@ -18,17 +18,19 @@ const (
 	genesisData = "First Transaction from Genesis"
 )
 
-// Определение структуры BlockChain, которая представляет собой цепочку блоков.
+// BlockChain представляет собой цепочку блоков, хранящуюся в базе данных.
 type BlockChain struct {
 	LastHash []byte
 	Database *badger.DB
 }
 
+// BlockChainIterator используется для итерации по блокам цепочки.
 type BlockChainIterator struct {
 	CurrentHash []byte
 	Database    *badger.DB
 }
 
+// DBexists проверяет, существует ли файл базы данных.
 func DBexists() bool {
 	if _, err := os.Stat(dbFile); os.IsNotExist(err) {
 		return false
@@ -37,6 +39,7 @@ func DBexists() bool {
 	return true
 }
 
+// ContinueBlockChain возобновляет существующую цепочку блоков из базы данных.
 func ContinueBlockChain(address string) *BlockChain {
 	if DBexists() == false {
 		fmt.Println("No existing blockchain found, create one!")
@@ -66,7 +69,7 @@ func ContinueBlockChain(address string) *BlockChain {
 	return &chain
 }
 
-// Функция InitBlockChain инициализирует новую цепочку блоков, начиная с генезис-блока.
+// InitBlockChain инициализирует новую цепочку блоков с генезис-блоком.
 func InitBlockChain(address string) *BlockChain {
 	var lastHash []byte
 
@@ -101,7 +104,7 @@ func InitBlockChain(address string) *BlockChain {
 	return &blockchain
 }
 
-// Метод AddBlock добавляет новый блок в цепочку, основываясь на предыдущем блоке.
+// AddBlock добавляет новый блок с транзакциями к цепочке.
 func (chain *BlockChain) AddBlock(transaction []*Transaction) {
 	var lastHash []byte
 
@@ -128,12 +131,14 @@ func (chain *BlockChain) AddBlock(transaction []*Transaction) {
 	Handle(err)
 }
 
+// Iterator возвращает итератор для блоков цепочки.
 func (chain *BlockChain) Iterator() *BlockChainIterator {
 	iter := &BlockChainIterator{chain.LastHash, chain.Database}
 
 	return iter
 }
 
+// Next возвращает следующий блок из цепочки и перемещает итератор.
 func (iter *BlockChainIterator) Next() *Block {
 	var block *Block
 
@@ -152,6 +157,7 @@ func (iter *BlockChainIterator) Next() *Block {
 	return block
 }
 
+// FindUnspentTransactions ищет все нерасходованные транзакции для данного адреса.
 func (chain *BlockChain) FindUnspentTransactions(pubKeyHash []byte) []Transaction {
 	var unspentTxs []Transaction
 
@@ -196,6 +202,7 @@ func (chain *BlockChain) FindUnspentTransactions(pubKeyHash []byte) []Transactio
 	return unspentTxs
 }
 
+// FindUTXO ищет все нерасходованные выходы транзакций (UTXO) для данного адреса.
 func (chain *BlockChain) FindUTXO(pubKeyHash []byte) []TxOutput {
 	var UTXOs []TxOutput
 	unspentTransactions := chain.FindUnspentTransactions(pubKeyHash)
@@ -211,6 +218,7 @@ func (chain *BlockChain) FindUTXO(pubKeyHash []byte) []TxOutput {
 	return UTXOs
 }
 
+// FindSpendableOutputs ищет нерасходованные выходы, достаточные для определенной суммы.
 func (chain *BlockChain) FindSpendableOutputs(pubKeyHash []byte, amount int) (int, map[string][]int) {
 	unspentOuts := make(map[string][]int)
 	unspentTxs := chain.FindUnspentTransactions(pubKeyHash)
@@ -235,6 +243,7 @@ Work:
 	return accumulated, unspentOuts
 }
 
+// FindTransaction ищет транзакцию по ее идентификатору.
 func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
 	iter := bc.Iterator()
 
@@ -255,6 +264,7 @@ func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
 	return Transaction{}, errors.New("Transaction does not exist")
 }
 
+// SignTransaction подписывает входы транзакции с использованием приватного ключа.
 func (bc *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey) {
 	prevTXs := make(map[string]Transaction)
 
@@ -267,6 +277,7 @@ func (bc *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey)
 	tx.Sign(privKey, prevTXs)
 }
 
+// VerifyTransaction проверяет подписи входов транзакции.
 func (bc *BlockChain) VerifyTransaction(tx *Transaction) bool {
 	prevTXs := make(map[string]Transaction)
 

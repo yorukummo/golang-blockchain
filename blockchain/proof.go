@@ -24,38 +24,40 @@ import (
 // Первые несколько байтов должны содержать 0s
 // ----------------------------------------------
 
-// Статическая сложность, в наст блокчейне со временем сложность наростает
+// Статическая сложность. В реальных блокчейнах сложность адаптируется со временем.
 const Difficulty = 18
 
+// ProofOfWork представляет собой структуру доказательства работы (Proof-of-Work) для блока.
 type ProofOfWork struct {
-	Block  *Block
-	Target *big.Int
+	Block  *Block   // Ссылка на блок для которого ищется доказательство
+	Target *big.Int // Цель (значение, ниже которого должен быть хэш)
 }
 
+// NewProof инициализирует новое доказательство работы для блока.
 func NewProof(b *Block) *ProofOfWork {
 	target := big.NewInt(1)
-	target.Lsh(target, uint(256-Difficulty))
+	target.Lsh(target, uint(256-Difficulty)) // Установка цели по заданной сложности
 
 	pow := &ProofOfWork{b, target}
 
 	return pow
 }
 
-// Инициализация данных для выполнения работы по доказательству работы.
+// InitData инициализирует данные для майнинга блока.
 func (pow *ProofOfWork) InitData(nonce int) []byte {
 	data := bytes.Join(
 		[][]byte{
 			pow.Block.PrevHash,           // Хэш предыдущего блока
-			pow.Block.HashTransactions(), // Данные текущего блока
-			ToHex(int64(nonce)),          // Счетчик (nonce) в виде байтов
-			ToHex(int64(Difficulty)),     // Сложность в виде байтов
+			pow.Block.HashTransactions(), // Данные транзакций текущего блока
+			ToHex(int64(nonce)),          // Текущее значение счетчика (nonce)
+			ToHex(int64(Difficulty)),     // Текущая сложность в форме байтов
 		},
 		[]byte{},
 	)
 	return data
 }
 
-// Метод Run выполняет майнинг для поиска правильного значения nonce и соответствующего хэша.
+// Run выполняет алгоритм доказательства работы, ищет nonce и соответствующий блоку хэш.
 func (pow *ProofOfWork) Run() (int, []byte) {
 	var intHash big.Int
 	var hash [32]byte
@@ -66,13 +68,13 @@ func (pow *ProofOfWork) Run() (int, []byte) {
 		data := pow.InitData(nonce)
 		hash = sha256.Sum256(data)
 
-		fmt.Printf("\r%x", hash) // Вывод текущего хэша в процессе майнинга
+		fmt.Printf("\r%x", hash) // Отображение текущего хэша в процессе майнинга
 		intHash.SetBytes(hash[:])
 
 		if intHash.Cmp(pow.Target) == -1 {
-			break // Если хэш соответствует требованиям, завершаем майнинг
+			break // Если найденный хэш соответствует условиям, завершаем майнинг
 		} else {
-			nonce++ // Увеличиваем nonce и продолжаем поиск
+			nonce++ // Увеличиваем nonce и продолжаем искать
 		}
 	}
 	fmt.Println()
@@ -80,19 +82,19 @@ func (pow *ProofOfWork) Run() (int, []byte) {
 	return nonce, hash[:]
 }
 
-// Метод Validate проверяет, соответствует ли хэш блока текущей сложности (Difficulty)
+// Validate проверяет, соответствует ли хэш блока условиям сложности.
 func (pow *ProofOfWork) Validate() bool {
 	var intHash big.Int
 
-	data := pow.InitData(pow.Block.Nonce) // Используем текущее значение nonce блока
+	data := pow.InitData(pow.Block.Nonce) // Получаем данные блока с текущим nonce
 
 	hash := sha256.Sum256(data)
 	intHash.SetBytes(hash[:])
 
-	return intHash.Cmp(pow.Target) == -1
+	return intHash.Cmp(pow.Target) == -1 // Проверка соответствия условиям сложности
 }
 
-// Функция ToHex преобразует целое число в байты для представления в шестнадцатеричной форме
+// ToHex преобразует целое число в его шестнадцатеричное представление в виде байтов.
 func ToHex(num int64) []byte {
 	buff := new(bytes.Buffer)
 	err := binary.Write(buff, binary.BigEndian, num)
