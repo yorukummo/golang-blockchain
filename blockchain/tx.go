@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"bytes"
+	"encoding/gob"
 
 	"github.com/argonautts/golang-blockchain/wallet"
 )
@@ -10,6 +11,10 @@ import (
 type TxOutput struct {
 	Value      int    // Значение в криптовалюте
 	PubKeyHash []byte // Хэш публичного ключа получателя
+}
+
+type TxOutputs struct {
+	Outputs []TxOutput
 }
 
 // TxInput структура входных данных транзакции.
@@ -45,4 +50,20 @@ func (out *TxOutput) Lock(address []byte) {
 // IsLockedWithKey проверяет, закрыт ли выход транзакции данным публичным ключом.
 func (out *TxOutput) IsLockedWithKey(pubKeyHash []byte) bool {
 	return bytes.Compare(out.PubKeyHash, pubKeyHash) == 0
+}
+
+func (outs TxOutputs) Serialize() []byte {
+	var buffer bytes.Buffer
+	encode := gob.NewEncoder(&buffer)
+	err := encode.Encode(outs)
+	Handle(err)
+	return buffer.Bytes()
+}
+
+func DeserializeOutputs(data []byte) TxOutputs {
+	var outputs TxOutputs
+	decode := gob.NewDecoder(bytes.NewReader(data))
+	err := decode.Decode(&outputs)
+	Handle(err)
+	return outputs
 }
