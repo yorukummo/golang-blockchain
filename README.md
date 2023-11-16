@@ -17,3 +17,7 @@
 4. go run main.go getbalance -address ADDRESS(FROM 1 dot)
 5. go run main.go reindexutxo
 6. go run main.go getbalance -address ADDRESS(FROM 1 dot)
+
+# FAQ
+Q: Почему в при транзакции становиться у отправляющего блока 40 ?
+A: Потому что он добыл Genesis и транзакцию 2 блока
