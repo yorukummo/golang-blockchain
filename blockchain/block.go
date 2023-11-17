@@ -4,14 +4,17 @@ import (
 	"bytes"
 	"encoding/gob"
 	"log"
+	"time"
 )
 
 // Block представляет собой структуру блока в блокчейне.
 type Block struct {
+	Timestamp   int64          // Временая метка
 	Hash        []byte         // Хэш текущего блока.
 	Transaction []*Transaction // Транзакции, включенные в блок.
 	PrevHash    []byte         // Хэш предыдущего блока.
 	Nonce       int            // "Nonce" используется в доказательстве работы (proof-of-work).
+	Height      int            // Высота
 }
 
 // HashTransactions создает хеш всех транзакций в блоке.
@@ -27,8 +30,8 @@ func (b *Block) HashTransactions() []byte {
 }
 
 // CreateBlock создает и возвращает новый блок, содержащий заданные транзакции и ссылку на предыдущий блок.
-func CreateBlock(txs []*Transaction, prevHash []byte) *Block {
-	block := &Block{[]byte{}, txs, prevHash, 0}
+func CreateBlock(txs []*Transaction, prevHash []byte, height int) *Block {
+	block := &Block{time.Now().Unix(), []byte{}, txs, prevHash, 0, height}
 	pow := NewProof(block)
 	nonce, hash := pow.Run()
 
@@ -40,7 +43,7 @@ func CreateBlock(txs []*Transaction, prevHash []byte) *Block {
 
 // Genesis создает и возвращает генезис-блок, который содержит стартовую транзакцию.
 func Genesis(coinbase *Transaction) *Block {
-	return CreateBlock([]*Transaction{coinbase}, []byte{})
+	return CreateBlock([]*Transaction{coinbase}, []byte{}, 0)
 }
 
 // Serialize преобразует блок в байтовый массив для сохранения или передачи.

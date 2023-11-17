@@ -11,7 +11,7 @@ import (
 )
 
 // Путь к файлу, где будут сохраняться данные кошельков.
-const walletFile = "./tmp/wallets.data"
+const walletFile = "./tmp/wallets_%s.data"
 
 // Wallets содержит мапу всех кошельков.
 type Wallets struct {
@@ -19,11 +19,11 @@ type Wallets struct {
 }
 
 // CreateWallets создает и возвращает структуру Wallets после попытки загрузки из файла.
-func CreateWallets() (*Wallets, error) {
+func CreateWallets(nodeId string) (*Wallets, error) {
 	wallet := Wallets{}
 	wallet.Wallets = make(map[string]*Wallet)
 
-	err := wallet.LoadFile()
+	err := wallet.LoadFile(nodeId)
 
 	return &wallet, err
 }
@@ -55,7 +55,9 @@ func (ws Wallets) GetWallet(address string) Wallet {
 }
 
 // LoadFile загружает кошельки из файла в структуру Wallets.
-func (ws *Wallets) LoadFile() error {
+func (ws *Wallets) LoadFile(nodeId string) error {
+	walletFile := fmt.Sprintf(walletFile, nodeId)
+
 	// Проверяем существование файла.
 	if _, err := os.Stat(walletFile); os.IsNotExist(err) {
 		return err
@@ -83,8 +85,9 @@ func (ws *Wallets) LoadFile() error {
 }
 
 // SaveFile сохраняет текущую структуру Wallets в файл.
-func (ws *Wallets) SaveFile() {
+func (ws *Wallets) SaveFile(nodeId string) {
 	var content bytes.Buffer
+	walletFile := fmt.Sprintf(walletFile, nodeId)
 
 	// Регистрируем тип для корректной сериализации.
 	gob.Register(elliptic.P256())
