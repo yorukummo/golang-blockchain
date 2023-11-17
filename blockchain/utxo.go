@@ -3,8 +3,9 @@ package blockchain
 import (
 	"bytes"
 	"encoding/hex"
-	"github.com/dgraph-io/badger"
 	"log"
+
+	"github.com/dgraph-io/badger"
 )
 
 var (
@@ -13,14 +14,13 @@ var (
 )
 
 type UTXOSet struct {
-	BlockChain *BlockChain
+	Blockchain *BlockChain
 }
 
-// FindSpendableOutputs ищет нерасходованные выходы, достаточные для определенной суммы.
 func (u UTXOSet) FindSpendableOutputs(pubKeyHash []byte, amount int) (int, map[string][]int) {
 	unspentOuts := make(map[string][]int)
 	accumulated := 0
-	db := u.BlockChain.Database
+	db := u.Blockchain.Database
 
 	err := db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -54,7 +54,7 @@ func (u UTXOSet) FindSpendableOutputs(pubKeyHash []byte, amount int) (int, map[s
 func (u UTXOSet) FindUnspentTransactions(pubKeyHash []byte) []TxOutput {
 	var UTXOs []TxOutput
 
-	db := u.BlockChain.Database
+	db := u.Blockchain.Database
 
 	err := db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -82,7 +82,7 @@ func (u UTXOSet) FindUnspentTransactions(pubKeyHash []byte) []TxOutput {
 }
 
 func (u UTXOSet) CountTransactions() int {
-	db := u.BlockChain.Database
+	db := u.Blockchain.Database
 	counter := 0
 
 	err := db.View(func(txn *badger.Txn) error {
@@ -90,29 +90,29 @@ func (u UTXOSet) CountTransactions() int {
 
 		it := txn.NewIterator(opts)
 		defer it.Close()
-		for it.Seek(utxoPrefix); it.ValidForPrefix(utxoPrefix); it.Next() { // XZ
+		for it.Seek(utxoPrefix); it.ValidForPrefix(utxoPrefix); it.Next() {
 			counter++
 		}
+
 		return nil
 	})
+
 	Handle(err)
 
 	return counter
 }
 
 func (u UTXOSet) Reindex() {
-	db := u.BlockChain.Database
+	db := u.Blockchain.Database
 
 	u.DeleteByPrefix(utxoPrefix)
 
-	UTXO := u.BlockChain.FindUTXO()
+	UTXO := u.Blockchain.FindUTXO()
 
 	err := db.Update(func(txn *badger.Txn) error {
 		for txId, outs := range UTXO {
 			key, err := hex.DecodeString(txId)
-			if err != nil {
-				return err
-			}
+			Handle(err)
 			key = append(utxoPrefix, key...)
 
 			err = txn.Set(key, outs.Serialize())
@@ -125,10 +125,10 @@ func (u UTXOSet) Reindex() {
 }
 
 func (u *UTXOSet) Update(block *Block) {
-	db := u.BlockChain.Database
+	db := u.Blockchain.Database
 
 	err := db.Update(func(txn *badger.Txn) error {
-		for _, tx := range block.Transaction { // Тут вообще должно быть Transactions
+		for _, tx := range block.Transactions {
 			if tx.IsCoinbase() == false {
 				for _, in := range tx.Inputs {
 					updatedOuts := TxOutputs{}
@@ -167,6 +167,7 @@ func (u *UTXOSet) Update(block *Block) {
 				log.Panic(err)
 			}
 		}
+
 		return nil
 	})
 	Handle(err)
@@ -174,7 +175,7 @@ func (u *UTXOSet) Update(block *Block) {
 
 func (u *UTXOSet) DeleteByPrefix(prefix []byte) {
 	deleteKeys := func(keysForDelete [][]byte) error {
-		if err := u.BlockChain.Database.Update(func(txn *badger.Txn) error {
+		if err := u.Blockchain.Database.Update(func(txn *badger.Txn) error {
 			for _, key := range keysForDelete {
 				if err := txn.Delete(key); err != nil {
 					return err
@@ -188,7 +189,7 @@ func (u *UTXOSet) DeleteByPrefix(prefix []byte) {
 	}
 
 	collectSize := 100000
-	u.BlockChain.Database.View(func(txn *badger.Txn) error {
+	u.Blockchain.Database.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		opts.PrefetchValues = false
 		it := txn.NewIterator(opts)

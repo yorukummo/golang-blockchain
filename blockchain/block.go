@@ -7,29 +7,26 @@ import (
 	"time"
 )
 
-// Block представляет собой структуру блока в блокчейне.
 type Block struct {
-	Timestamp   int64          // Временая метка
-	Hash        []byte         // Хэш текущего блока.
-	Transaction []*Transaction // Транзакции, включенные в блок.
-	PrevHash    []byte         // Хэш предыдущего блока.
-	Nonce       int            // "Nonce" используется в доказательстве работы (proof-of-work).
-	Height      int            // Высота
+	Timestamp    int64
+	Hash         []byte
+	Transactions []*Transaction
+	PrevHash     []byte
+	Nonce        int
+	Height       int
 }
 
-// HashTransactions создает хеш всех транзакций в блоке.
 func (b *Block) HashTransactions() []byte {
 	var txHashes [][]byte
 
-	for _, tx := range b.Transaction {
+	for _, tx := range b.Transactions {
 		txHashes = append(txHashes, tx.Serialize())
 	}
-	tree := NewMerkleTree(txHashes) // Используем дерево Меркля
+	tree := NewMerkleTree(txHashes)
 
 	return tree.RootNode.Data
 }
 
-// CreateBlock создает и возвращает новый блок, содержащий заданные транзакции и ссылку на предыдущий блок.
 func CreateBlock(txs []*Transaction, prevHash []byte, height int) *Block {
 	block := &Block{time.Now().Unix(), []byte{}, txs, prevHash, 0, height}
 	pow := NewProof(block)
@@ -41,12 +38,10 @@ func CreateBlock(txs []*Transaction, prevHash []byte, height int) *Block {
 	return block
 }
 
-// Genesis создает и возвращает генезис-блок, который содержит стартовую транзакцию.
 func Genesis(coinbase *Transaction) *Block {
 	return CreateBlock([]*Transaction{coinbase}, []byte{}, 0)
 }
 
-// Serialize преобразует блок в байтовый массив для сохранения или передачи.
 func (b *Block) Serialize() []byte {
 	var res bytes.Buffer
 	encoder := gob.NewEncoder(&res)
@@ -58,7 +53,6 @@ func (b *Block) Serialize() []byte {
 	return res.Bytes()
 }
 
-// Deserialize преобразует байтовый массив обратно в структуру блока.
 func Deserialize(data []byte) *Block {
 	var block Block
 
@@ -71,7 +65,6 @@ func Deserialize(data []byte) *Block {
 	return &block
 }
 
-// Handle является обобщенным обработчиком ошибок, который завершает программу в случае ошибки.
 func Handle(err error) {
 	if err != nil {
 		log.Panic(err)

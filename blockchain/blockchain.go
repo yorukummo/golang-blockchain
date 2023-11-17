@@ -16,16 +16,15 @@ import (
 )
 
 const (
-	dbPath = "./tmp/blocks_%s"
+	dbPath      = "./tmp/blocks_%s"
+	genesisData = "First Transaction from Genesis"
 )
 
-// BlockChain представляет собой цепочку блоков, хранящуюся в базе данных.
 type BlockChain struct {
 	LastHash []byte
 	Database *badger.DB
 }
 
-// DBexists проверяет, существует ли файл базы данных.
 func DBexists(path string) bool {
 	if _, err := os.Stat(path + "/MANIFEST"); os.IsNotExist(err) {
 		return false
@@ -34,7 +33,6 @@ func DBexists(path string) bool {
 	return true
 }
 
-// ContinueBlockChain возобновляет существующую цепочку блоков из базы данных.
 func ContinueBlockChain(nodeId string) *BlockChain {
 	path := fmt.Sprintf(dbPath, nodeId)
 	if DBexists(path) == false {
@@ -45,8 +43,8 @@ func ContinueBlockChain(nodeId string) *BlockChain {
 	var lastHash []byte
 
 	opts := badger.DefaultOptions
-	opts.Dir = dbPath
-	opts.ValueDir = dbPath
+	opts.Dir = path
+	opts.ValueDir = path
 
 	db, err := openDB(path, opts)
 	Handle(err)
@@ -65,19 +63,16 @@ func ContinueBlockChain(nodeId string) *BlockChain {
 	return &chain
 }
 
-// InitBlockChain инициализирует новую цепочку блоков с генезис-блоком.
 func InitBlockChain(address, nodeId string) *BlockChain {
 	path := fmt.Sprintf(dbPath, nodeId)
-
 	if DBexists(path) {
 		fmt.Println("Blockchain already exists")
 		runtime.Goexit()
 	}
-
 	var lastHash []byte
 	opts := badger.DefaultOptions
-	opts.Dir = dbPath
-	opts.ValueDir = dbPath
+	opts.Dir = path
+	opts.ValueDir = path
 
 	db, err := openDB(path, opts)
 	Handle(err)
@@ -93,6 +88,7 @@ func InitBlockChain(address, nodeId string) *BlockChain {
 		lastHash = genesis.Hash
 
 		return err
+
 	})
 
 	Handle(err)
@@ -130,6 +126,27 @@ func (chain *BlockChain) AddBlock(block *Block) {
 		return nil
 	})
 	Handle(err)
+}
+
+func (chain *BlockChain) GetBestHeight() int {
+	var lastBlock Block
+
+	err := chain.Database.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte("lh"))
+		Handle(err)
+		lastHash, _ := item.Value()
+
+		item, err = txn.Get(lastHash)
+		Handle(err)
+		lastBlockData, _ := item.Value()
+
+		lastBlock = *Deserialize(lastBlockData)
+
+		return nil
+	})
+	Handle(err)
+
+	return lastBlock.Height
 }
 
 func (chain *BlockChain) GetBlock(blockHash []byte) (Block, error) {
@@ -170,35 +187,13 @@ func (chain *BlockChain) GetBlockHashes() [][]byte {
 	return blocks
 }
 
-func (chain *BlockChain) GetBestHeight() int {
-	var lastBlock Block
-
-	err := chain.Database.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte("lh"))
-		Handle(err)
-		lastHash, _ := item.Value()
-
-		item, err = txn.Get(lastHash)
-		Handle(err)
-		lastBlockData, _ := item.Value()
-
-		lastBlock = *Deserialize(lastBlockData)
-
-		return nil
-	})
-	Handle(err)
-
-	return lastBlock.Height
-}
-
-// MineBlock добавляет новый блок с транзакциями к цепочке.
-func (chain *BlockChain) MineBlock(transaction []*Transaction) *Block {
+func (chain *BlockChain) MineBlock(transactions []*Transaction) *Block {
 	var lastHash []byte
 	var lastHeight int
 
-	for _, tx := range transaction {
-		if chain.VerifyTransaction(TX) != true {
-			log.Panic("Invaild Transaction")
+	for _, tx := range transactions {
+		if chain.VerifyTransaction(tx) != true {
+			log.Panic("Invalid Transaction")
 		}
 	}
 
@@ -219,7 +214,7 @@ func (chain *BlockChain) MineBlock(transaction []*Transaction) *Block {
 	})
 	Handle(err)
 
-	newBlock := CreateBlock(transaction, lastHash, lastHeight+1)
+	newBlock := CreateBlock(transactions, lastHash, lastHeight+1)
 
 	err = chain.Database.Update(func(txn *badger.Txn) error {
 		err := txn.Set(newBlock.Hash, newBlock.Serialize())
@@ -235,52 +230,6 @@ func (chain *BlockChain) MineBlock(transaction []*Transaction) *Block {
 	return newBlock
 }
 
-// FindUnspentTransactions ищет все нерасходованные транзакции для данного адреса.
-func (chain *BlockChain) FindUnspentTransactions(pubKeyHash []byte) []Transaction {
-	var unspentTxs []Transaction
-
-	spentTXOs := make(map[string][]int)
-
-	iter := chain.Iterator()
-
-	for {
-		block := iter.Next()
-
-		for _, tx := range block.Transaction {
-			txID := hex.EncodeToString(tx.ID)
-
-		OutPuts: // Метка
-			for outIdx, out := range tx.Outputs {
-				if spentTXOs[txID] != nil {
-					for _, spentOut := range spentTXOs[txID] {
-						if spentOut == outIdx {
-							continue OutPuts
-						}
-					}
-				}
-				if out.IsLockedWithKey(pubKeyHash) {
-					unspentTxs = append(unspentTxs, *tx)
-				}
-			}
-			if tx.IsCoinbase() == false {
-				for _, in := range tx.Inputs {
-					if in.UsesKey(pubKeyHash) {
-						inTxID := hex.EncodeToString(in.ID)
-						spentTXOs[inTxID] = append(spentTXOs[inTxID], in.Out)
-					}
-				}
-			}
-		}
-
-		if len(block.PrevHash) == 0 {
-			break
-		}
-	}
-
-	return unspentTxs
-}
-
-// FindUTXO ищет все нерасходованные выходы транзакций (UTXO) для данного адреса.
 func (chain *BlockChain) FindUTXO() map[string]TxOutputs {
 	UTXO := make(map[string]TxOutputs)
 	spentTXOs := make(map[string][]int)
@@ -290,7 +239,7 @@ func (chain *BlockChain) FindUTXO() map[string]TxOutputs {
 	for {
 		block := iter.Next()
 
-		for _, tx := range block.Transaction {
+		for _, tx := range block.Transactions {
 			txID := hex.EncodeToString(tx.ID)
 
 		Outputs:
@@ -309,8 +258,7 @@ func (chain *BlockChain) FindUTXO() map[string]TxOutputs {
 			if tx.IsCoinbase() == false {
 				for _, in := range tx.Inputs {
 					inTxID := hex.EncodeToString(in.ID)
-					spentTXOs[inTxID] = append(spentTXOs[inTxID])
-
+					spentTXOs[inTxID] = append(spentTXOs[inTxID], in.Out)
 				}
 			}
 		}
@@ -322,14 +270,13 @@ func (chain *BlockChain) FindUTXO() map[string]TxOutputs {
 	return UTXO
 }
 
-// FindTransaction ищет транзакцию по ее идентификатору.
 func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
 	iter := bc.Iterator()
 
 	for {
 		block := iter.Next()
 
-		for _, tx := range block.Transaction {
+		for _, tx := range block.Transactions {
 			if bytes.Compare(tx.ID, ID) == 0 {
 				return *tx, nil
 			}
@@ -343,7 +290,6 @@ func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
 	return Transaction{}, errors.New("Transaction does not exist")
 }
 
-// SignTransaction подписывает входы транзакции с использованием приватного ключа.
 func (bc *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey) {
 	prevTXs := make(map[string]Transaction)
 
@@ -356,12 +302,10 @@ func (bc *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey)
 	tx.Sign(privKey, prevTXs)
 }
 
-// VerifyTransaction проверяет подписи входов транзакции.
 func (bc *BlockChain) VerifyTransaction(tx *Transaction) bool {
 	if tx.IsCoinbase() {
 		return true
 	}
-
 	prevTXs := make(map[string]Transaction)
 
 	for _, in := range tx.Inputs {
