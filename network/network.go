@@ -119,7 +119,7 @@ func SendData(addr string, data []byte) {
 	conn, err := net.Dial(protocol, addr)
 
 	if err != nil {
-		fmt.Printf("%s is not available\n", addr)
+		fmt.Printf("%s недоступен\n", addr)
 		var updatedNodes []string
 
 		for _, node := range KnownNodes {
@@ -193,7 +193,7 @@ func HandleAddr(request []byte) {
 	}
 
 	KnownNodes = append(KnownNodes, payload.AddrList...)
-	fmt.Printf("there are %d known nodes\n", len(KnownNodes))
+	fmt.Printf("существует %d известных узлов\n", len(KnownNodes))
 	RequestBlocks()
 }
 
@@ -214,7 +214,7 @@ func HandleBlock(request []byte, chain *blockchain.BlockChain) {
 	fmt.Println("Recevied a new block!")
 	chain.AddBlock(block)
 
-	fmt.Printf("Added block %x\n", block.Hash)
+	fmt.Printf("Добавленный блок %x\n", block.Hash)
 
 	if len(blocksInTransit) > 0 {
 		blockHash := blocksInTransit[0]
@@ -349,7 +349,7 @@ func MineTx(chain *blockchain.BlockChain) {
 	}
 
 	if len(txs) == 0 {
-		fmt.Println("All Transactions are invalid")
+		fmt.Println("Все транзакции недействительны")
 		return
 	}
 
@@ -360,7 +360,7 @@ func MineTx(chain *blockchain.BlockChain) {
 	UTXOSet := blockchain.UTXOSet{chain}
 	UTXOSet.Reindex()
 
-	fmt.Println("New Block mined")
+	fmt.Println("Новый блок добыт")
 
 	for _, tx := range txs {
 		txID := hex.EncodeToString(tx.ID)

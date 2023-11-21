@@ -1,3 +1,5 @@
+// Implementation of iteration by chains
+
 package blockchain
 
 import "github.com/dgraph-io/badger"

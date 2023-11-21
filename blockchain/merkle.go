@@ -42,7 +42,7 @@ func NewMerkleTree(data [][]byte) *MerkleTree {
 	}
 
 	if len(nodes) == 0 {
-		log.Panic("No merkel nodes")
+		log.Panic("Узлы Меркеля отсутствуют")
 	}
 
 	for len(nodes) > 1 {

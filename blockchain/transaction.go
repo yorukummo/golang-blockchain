@@ -1,3 +1,5 @@
+// Implementation
+
 package blockchain
 
 import (
@@ -78,7 +80,7 @@ func NewTransaction(w *wallet.Wallet, to string, amount int, UTXO *UTXOSet) *Tra
 	acc, validOutputs := UTXO.FindSpendableOutputs(pubKeyHash, amount)
 
 	if acc < amount {
-		log.Panic("Error: not enough funds")
+		log.Panic("ERROR: недостаточное количество средств")
 	}
 
 	for txid, outs := range validOutputs {
@@ -117,7 +119,7 @@ func (tx *Transaction) Sign(privKey ecdsa.PrivateKey, prevTXs map[string]Transac
 
 	for _, in := range tx.Inputs {
 		if prevTXs[hex.EncodeToString(in.ID)].ID == nil {
-			log.Panic("ERROR: Previous transaction is not correct")
+			log.Panic("ERROR: Предыдущая транзакция не является корректной")
 		}
 	}
 
@@ -146,7 +148,7 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 
 	for _, in := range tx.Inputs {
 		if prevTXs[hex.EncodeToString(in.ID)].ID == nil {
-			log.Panic("Previous transaction not correct")
+			log.Panic("Предыдущая транзакция не является корректной")
 		}
 	}
 

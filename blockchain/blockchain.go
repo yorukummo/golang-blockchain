@@ -17,7 +17,7 @@ import (
 
 const (
 	dbPath      = "./tmp/blocks_%s"
-	genesisData = "First Transaction from Genesis"
+	genesisData = "Первая транзакция из Genesis"
 )
 
 type BlockChain struct {
@@ -36,7 +36,7 @@ func DBexists(path string) bool {
 func ContinueBlockChain(nodeId string) *BlockChain {
 	path := fmt.Sprintf(dbPath, nodeId)
 	if DBexists(path) == false {
-		fmt.Println("No existing blockchain found, create one!")
+		fmt.Println("Не найдено ни одного существующего блокчейна, создайте его!")
 		runtime.Goexit()
 	}
 
@@ -66,7 +66,7 @@ func ContinueBlockChain(nodeId string) *BlockChain {
 func InitBlockChain(address, nodeId string) *BlockChain {
 	path := fmt.Sprintf(dbPath, nodeId)
 	if DBexists(path) {
-		fmt.Println("Blockchain already exists")
+		fmt.Println("Блокчейн уже существует")
 		runtime.Goexit()
 	}
 	var lastHash []byte
@@ -80,7 +80,7 @@ func InitBlockChain(address, nodeId string) *BlockChain {
 	err = db.Update(func(txn *badger.Txn) error {
 		cbtx := CoinbaseTx(address, genesisData)
 		genesis := Genesis(cbtx)
-		fmt.Println("Genesis created")
+		fmt.Println("Genesis создан")
 		err = txn.Set(genesis.Hash, genesis.Serialize())
 		Handle(err)
 		err = txn.Set([]byte("lh"), genesis.Hash)
@@ -154,7 +154,7 @@ func (chain *BlockChain) GetBlock(blockHash []byte) (Block, error) {
 
 	err := chain.Database.View(func(txn *badger.Txn) error {
 		if item, err := txn.Get(blockHash); err != nil {
-			return errors.New("Block is not found")
+			return errors.New("Блок не найден")
 		} else {
 			blockData, _ := item.Value()
 
@@ -193,7 +193,7 @@ func (chain *BlockChain) MineBlock(transactions []*Transaction) *Block {
 
 	for _, tx := range transactions {
 		if chain.VerifyTransaction(tx) != true {
-			log.Panic("Invalid Transaction")
+			log.Panic("Недействительная транзакция")
 		}
 	}
 
@@ -287,7 +287,7 @@ func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
 		}
 	}
 
-	return Transaction{}, errors.New("Transaction does not exist")
+	return Transaction{}, errors.New("Транзакция не существует")
 }
 
 func (bc *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey) {
@@ -320,7 +320,7 @@ func (bc *BlockChain) VerifyTransaction(tx *Transaction) bool {
 func retry(dir string, originalOpts badger.Options) (*badger.DB, error) {
 	lockPath := filepath.Join(dir, "LOCK")
 	if err := os.Remove(lockPath); err != nil {
-		return nil, fmt.Errorf(`removing "LOCK": %s`, err)
+		return nil, fmt.Errorf(`удаление "LOCK": %s`, err)
 	}
 	retryOpts := originalOpts
 	retryOpts.Truncate = true
@@ -332,10 +332,10 @@ func openDB(dir string, opts badger.Options) (*badger.DB, error) {
 	if db, err := badger.Open(opts); err != nil {
 		if strings.Contains(err.Error(), "LOCK") {
 			if db, err := retry(dir, opts); err == nil {
-				log.Println("database unlocked, value log truncated")
+				log.Println("база данных разблокирована, журнал значений truncated")
 				return db, nil
 			}
-			log.Println("could not unlock database:", err)
+			log.Println("не удалось разблокировать базу данных:", err)
 		}
 		return nil, err
 	} else {
