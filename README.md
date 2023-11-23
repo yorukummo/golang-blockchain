@@ -13,7 +13,7 @@ cd $GOPATH/src/golang-blockchain
 ```
 Install all dependencies in the `go.mod` file using `go get`.
 To invoke the helper on the command line, simply run the main project file `main.go`.
-```go
+``` go
 go run main.go
 ```
 
@@ -88,36 +88,36 @@ The wallet folder is used to store 3 files:
 ### Commands
 
 Creating a wallet for further work with blockchain
-```go
+``` go
 go run main.go createwallet
 ```
 
 Blockchain creation, including Genesis
-```go
+``` go
 go run main.go createblockchain -address ADDRESS
 ```
 Transactions for token exchange
-```go
+``` go
 go run main.go send -from FROM -to TO -amount AMOUNT -mine
 ```
 Display blockchain information
-```go
+``` go
 go run main.go printchain
 ```
 Wallets address output
-```go
+``` go
 go run main.go listaddresses
 ```
 Check balance in the wallet
-```go
+``` go
 go run main.go getbalance -address ADDRESS
 ```
 Re-indexing tokens
-```go
+``` go
 go run main.go reindexutxo
 ```
 Starting NODE and the miner
-```go
+``` go
 go run main.go startnode -miner ADDRESS
 ```
 
@@ -126,15 +126,42 @@ go run main.go startnode -miner ADDRESS
 ### Example use for macOS
 Below is a test example of using commands to work with the program in the terminal.
 I advise to open several tabs in the terminal to work with `NODE_ID` and further work with them.
+``` bash
+export set NODE_ID=3000
+export set NODE_ID=4000  
+export set NODE_ID=5000
+```
 
-0. export set NODE_ID=3000,     export set NODE_ID=4000,     export set NODE_ID=5000
-1. go run main.go createwallet, go run main.go createwallet, go run main.go createwallet
-2. go run main.go createblockchain -address ADDRESS
-3. cp -R blocks_3000/ blocks_4000/
-4. cp -R blocks_3000/ blocks_5000/
-5. cp -R blocks_3000/ blocks_gen/
-6. go run main.go send -from ADDRESS(NODE_ID=3000) -to ADDRESS(NODE_ID=5000) -amount 10 -mine
-7. go run main.go startnode(NODE_ID=3000)     go run main.go startnode(NODE_ID=4000) go run main.go startnode(NODE_ID=5000) -miner ADDRESS(NODE_ID=5000)
-8. Exit NODE_ID=4000
-9. go run main.go send -from ADDRESS(NODE_ID=5000) -to ADDRESS(NODE_ID=4000) -amount 1
-10. go run main.go send -from ADDRESS(NODE_ID=4000) -to ADDRESS(NODE_ID=3000) -amount 1
+``` go 
+go run main.go createwallet, go run main.go createwallet, go run main.go createwallet
+```
+
+``` go 
+go run main.go createblockchain -address ADDRESS
+```
+
+``` bash
+cp -R blocks_3000/ blocks_4000/
+cp -R blocks_3000/ blocks_5000/
+cp -R blocks_3000/ blocks_gen/
+```
+
+``` go
+go run main.go send -from ADDRESS(NODE_ID=3000) -to ADDRESS(NODE_ID=5000) -amount 10 -mine
+```
+
+``` go
+go run main.go startnode(NODE_ID=3000)     
+go run main.go startnode(NODE_ID=4000) 
+go run main.go startnode(NODE_ID=5000) -miner ADDRESS(NODE_ID=5000)
+```
+
+`Exit NODE_ID=4000`
+
+``` go
+go run main.go send -from ADDRESS(NODE_ID=5000) -to ADDRESS(NODE_ID=4000) -amount 1
+```
+
+``` go
+go run main.go send -from ADDRESS(NODE_ID=4000) -to ADDRESS(NODE_ID=3000) -amount 1
+```
