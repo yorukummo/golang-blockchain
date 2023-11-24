@@ -1,5 +1,3 @@
-// Package blockchain represents the core logic for blockchain operations such as managing blocks,
-// transactions, and their interrelationships like merkle trees and proof of work.
 package blockchain
 
 import "github.com/dgraph-io/badger"

@@ -1,5 +1,3 @@
-// Package wallet implements the functionality of creating and managing wallets,
-// and provides methods for encoding and decoding wallet information.
 package wallet
 
 import (
