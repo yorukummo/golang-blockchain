@@ -180,7 +180,7 @@ func (cli *CommandLine) Run() {
 		runtime.Goexit()
 	}
 
-	// Flag parsing for different commands
+	// Flag parsing for different commands.
 	getBalanceCmd := flag.NewFlagSet("getbalance", flag.ExitOnError)
 	createBlockchainCmd := flag.NewFlagSet("createblockchain", flag.ExitOnError)
 	sendCmd := flag.NewFlagSet("send", flag.ExitOnError)
@@ -190,7 +190,7 @@ func (cli *CommandLine) Run() {
 	reindexUTXOCmd := flag.NewFlagSet("reindexutxo", flag.ExitOnError)
 	startNodeCmd := flag.NewFlagSet("startnode", flag.ExitOnError)
 
-	// Command-specific flags
+	// Command-specific flags.
 	getBalanceAddress := getBalanceCmd.String("address", "", "The address to get balance for")
 	createBlockchainAddress := createBlockchainCmd.String("address", "", "The address to send genesis block reward to")
 	sendFrom := sendCmd.String("from", "", "Source wallet address")
@@ -199,7 +199,7 @@ func (cli *CommandLine) Run() {
 	sendMine := sendCmd.Bool("mine", false, "Mine immediately on the same node")
 	startNodeMiner := startNodeCmd.String("miner", "", "Enable mining mode and send reward to ADDRESS")
 
-	// Parsing the arguments based on the command
+	// Parsing the arguments based on the command.
 	switch os.Args[1] {
 	case "reindexutxo":
 		err := reindexUTXOCmd.Parse(os.Args[2:])
@@ -246,7 +246,7 @@ func (cli *CommandLine) Run() {
 		runtime.Goexit()
 	}
 
-	// Executing the corresponding function based on the parsed command
+	// Executing the corresponding function based on the parsed command.
 	if getBalanceCmd.Parsed() {
 		if *getBalanceAddress == "" {
 			getBalanceCmd.Usage()

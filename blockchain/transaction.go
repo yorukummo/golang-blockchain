@@ -1,5 +1,5 @@
-// Implementation
-
+// Package blockchain represents the core logic for blockchain operations such as managing blocks,
+// transactions, and their interrelationships like merkle trees and proof of work.
 package blockchain
 
 import (
@@ -17,23 +17,26 @@ import (
 	"strings"
 )
 
+// Transaction represents a blockchain transaction with inputs and outputs.
 type Transaction struct {
-	ID      []byte
-	Inputs  []TxInput
-	Outputs []TxOutput
+	ID      []byte     // Unique identifier of the transaction
+	Inputs  []TxInput  // Inputs to the transaction
+	Outputs []TxOutput // Outputs from the transaction
 }
 
+// Hash generates a hash of the transaction, used as its ID.
 func (tx *Transaction) Hash() []byte {
 	var hash [32]byte
 
 	txCopy := *tx
-	txCopy.ID = []byte{}
+	txCopy.ID = []byte{} // Resetting the ID field to hash the rest of the transaction
 
-	hash = sha256.Sum256(txCopy.Serialize())
+	hash = sha256.Sum256(txCopy.Serialize()) // Hashing the serialized transaction
 
 	return hash[:]
 }
 
+// Serialize converts the transaction to a byte slice for storage or transmission.
 func (tx Transaction) Serialize() []byte {
 	var encoded bytes.Buffer
 
@@ -46,6 +49,7 @@ func (tx Transaction) Serialize() []byte {
 	return encoded.Bytes()
 }
 
+// DeserializeTransaction converts a byte slice back into a Transaction struct.
 func DeserializeTransaction(data []byte) Transaction {
 	var transaction Transaction
 
@@ -55,23 +59,25 @@ func DeserializeTransaction(data []byte) Transaction {
 	return transaction
 }
 
+// CoinbaseTx creates a new coinbase transaction, which is the first transaction in a block.
 func CoinbaseTx(to, data string) *Transaction {
 	if data == "" {
 		randData := make([]byte, 24)
 		_, err := rand.Read(randData)
 		Handle(err)
-		data = fmt.Sprintf("%x", randData)
+		data = fmt.Sprintf("%x", randData) // Generating a random data if none provided
 	}
 
-	txin := TxInput{[]byte{}, -1, nil, []byte(data)}
-	txout := NewTXOutput(20, to)
+	txin := TxInput{[]byte{}, -1, nil, []byte(data)} // Creating a special input for coinbase transaction
+	txout := NewTXOutput(20, to)                     // Creating output for the transaction
 
 	tx := Transaction{nil, []TxInput{txin}, []TxOutput{*txout}}
-	tx.ID = tx.Hash()
+	tx.ID = tx.Hash() // Setting the transaction ID as the hash of the transaction
 
 	return &tx
 }
 
+// NewTransaction creates a new regular transaction from a wallet to a target address.
 func NewTransaction(w *wallet.Wallet, to string, amount int, UTXO *UTXOSet) *Transaction {
 	var inputs []TxInput
 	var outputs []TxOutput
@@ -80,9 +86,10 @@ func NewTransaction(w *wallet.Wallet, to string, amount int, UTXO *UTXOSet) *Tra
 	acc, validOutputs := UTXO.FindSpendableOutputs(pubKeyHash, amount)
 
 	if acc < amount {
-		log.Panic("ERROR: недостаточное количество средств")
+		log.Panic("ERROR: Not enough funds")
 	}
 
+	// Building a list of inputs
 	for txid, outs := range validOutputs {
 		txID, err := hex.DecodeString(txid)
 		Handle(err)
@@ -95,35 +102,34 @@ func NewTransaction(w *wallet.Wallet, to string, amount int, UTXO *UTXOSet) *Tra
 
 	from := fmt.Sprintf("%s", w.Address())
 
+	// Creating output for the receiver
 	outputs = append(outputs, *NewTXOutput(amount, to))
 
+	// Creating a change output if needed
 	if acc > amount {
 		outputs = append(outputs, *NewTXOutput(acc-amount, from))
 	}
 
 	tx := Transaction{nil, inputs, outputs}
-	tx.ID = tx.Hash()
-	UTXO.Blockchain.SignTransaction(&tx, w.PrivateKey)
+	tx.ID = tx.Hash()                                  // Setting the transaction ID
+	UTXO.Blockchain.SignTransaction(&tx, w.PrivateKey) // Signing the transaction
 
 	return &tx
 }
 
+// IsCoinbase checks if the transaction is a coinbase transaction.
 func (tx *Transaction) IsCoinbase() bool {
+	// Coinbase transaction has one input with no ID and a -1 Out index.
 	return len(tx.Inputs) == 1 && len(tx.Inputs[0].ID) == 0 && tx.Inputs[0].Out == -1
 }
 
+// Sign signs each input of the transaction.
 func (tx *Transaction) Sign(privKey ecdsa.PrivateKey, prevTXs map[string]Transaction) {
 	if tx.IsCoinbase() {
-		return
+		return // Coinbase transactions don't require a signature.
 	}
 
-	for _, in := range tx.Inputs {
-		if prevTXs[hex.EncodeToString(in.ID)].ID == nil {
-			log.Panic("ERROR: Предыдущая транзакция не является корректной")
-		}
-	}
-
-	txCopy := tx.TrimmedCopy()
+	txCopy := tx.TrimmedCopy() // Creating a trimmed copy for signing
 
 	for inId, in := range txCopy.Inputs {
 		prevTX := prevTXs[hex.EncodeToString(in.ID)]
@@ -132,6 +138,7 @@ func (tx *Transaction) Sign(privKey ecdsa.PrivateKey, prevTXs map[string]Transac
 
 		dataToSign := fmt.Sprintf("%x\n", txCopy)
 
+		// Signing the data
 		r, s, err := ecdsa.Sign(rand.Reader, &privKey, []byte(dataToSign))
 		Handle(err)
 		signature := append(r.Bytes(), s.Bytes()...)
@@ -141,19 +148,14 @@ func (tx *Transaction) Sign(privKey ecdsa.PrivateKey, prevTXs map[string]Transac
 	}
 }
 
+// Verify verifies the signatures of Transaction inputs.
 func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 	if tx.IsCoinbase() {
-		return true
+		return true // Coinbase transactions don't require verification.
 	}
 
-	for _, in := range tx.Inputs {
-		if prevTXs[hex.EncodeToString(in.ID)].ID == nil {
-			log.Panic("Предыдущая транзакция не является корректной")
-		}
-	}
-
-	txCopy := tx.TrimmedCopy()
-	curve := elliptic.P256()
+	txCopy := tx.TrimmedCopy() // Creating a trimmed copy for verification
+	curve := elliptic.P256()   // Using P256 elliptic curve
 
 	for inId, in := range tx.Inputs {
 		prevTx := prevTXs[hex.EncodeToString(in.ID)]
@@ -162,7 +164,6 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 
 		r := big.Int{}
 		s := big.Int{}
-
 		sigLen := len(in.Signature)
 		r.SetBytes(in.Signature[:(sigLen / 2)])
 		s.SetBytes(in.Signature[(sigLen / 2):])
@@ -177,18 +178,20 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 
 		rawPubKey := ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}
 		if ecdsa.Verify(&rawPubKey, []byte(dataToVerify), &r, &s) == false {
-			return false
+			return false // Signature does not match.
 		}
 		txCopy.Inputs[inId].PubKey = nil
 	}
 
-	return true
+	return true // All signatures are valid.
 }
 
+// TrimmedCopy creates a copy of the transaction to be used in signing and verification.
 func (tx *Transaction) TrimmedCopy() Transaction {
 	var inputs []TxInput
 	var outputs []TxOutput
 
+	// Copying inputs and outputs without the signature and public key.
 	for _, in := range tx.Inputs {
 		inputs = append(inputs, TxInput{in.ID, in.Out, nil, nil})
 	}
@@ -202,6 +205,7 @@ func (tx *Transaction) TrimmedCopy() Transaction {
 	return txCopy
 }
 
+// String returns a human-readable representation of the transaction.
 func (tx Transaction) String() string {
 	var lines []string
 

@@ -1,3 +1,4 @@
+// Package network implements a network module for the code.
 package network
 
 import (
@@ -16,18 +17,20 @@ import (
 	"syscall"
 )
 
+// Constant definitions for network protocol parameters.
 const (
-	protocol      = "tcp"
-	version       = 1
-	commandLength = 12
+	protocol      = "tcp" // Network protocol used
+	version       = 1     // Version of the protocol
+	commandLength = 12    // Length of the command in the protocol
 )
 
+// Global variables used in the network package.
 var (
-	nodeAddress     string
-	mineAddress     string
-	KnownNodes      = []string{"localhost:3000"}
-	blocksInTransit = [][]byte{}
-	memoryPool      = make(map[string]blockchain.Transaction)
+	nodeAddress     string                                    // Address of the current node
+	mineAddress     string                                    // Mining address
+	KnownNodes      = []string{"localhost:3000"}              // Initial known nodes
+	blocksInTransit = [][]byte{}                              // Blocks being transmitted
+	memoryPool      = make(map[string]blockchain.Transaction) // Pool of transactions
 )
 
 type Addr struct {
@@ -66,6 +69,9 @@ type Version struct {
 	AddrFrom   string
 }
 
+// Utility functions for the network communication
+
+// CmdToBytes converts command string to bytes.
 func CmdToBytes(cmd string) []byte {
 	var bytes [commandLength]byte
 
@@ -76,6 +82,7 @@ func CmdToBytes(cmd string) []byte {
 	return bytes[:]
 }
 
+// BytesToCmd converts bytes back to command string.
 func BytesToCmd(bytes []byte) string {
 	var cmd []byte
 
@@ -88,16 +95,19 @@ func BytesToCmd(bytes []byte) string {
 	return fmt.Sprintf("%s", cmd)
 }
 
+// ExtractCmd extracts the command from the received request.
 func ExtractCmd(request []byte) []byte {
 	return request[:commandLength]
 }
 
+// RequestBlocks Requests blocks from all known nodes.
 func RequestBlocks() {
 	for _, node := range KnownNodes {
 		SendGetBlocks(node)
 	}
 }
 
+// SendAddr sends the 'addr' command to a specified address.
 func SendAddr(address string) {
 	nodes := Addr{KnownNodes}
 	nodes.AddrList = append(nodes.AddrList, nodeAddress)
@@ -107,6 +117,7 @@ func SendAddr(address string) {
 	SendData(address, request)
 }
 
+// SendBlock sends a block to a specified address.
 func SendBlock(addr string, b *blockchain.Block) {
 	data := Block{nodeAddress, b.Serialize()}
 	payload := GobEncode(data)
@@ -115,11 +126,12 @@ func SendBlock(addr string, b *blockchain.Block) {
 	SendData(addr, request)
 }
 
+// SendData general method to send data to a specified address.
 func SendData(addr string, data []byte) {
 	conn, err := net.Dial(protocol, addr)
 
 	if err != nil {
-		fmt.Printf("%s недоступен\n", addr)
+		fmt.Printf("%s unavailable\n", addr)
 		var updatedNodes []string
 
 		for _, node := range KnownNodes {
@@ -141,6 +153,7 @@ func SendData(addr string, data []byte) {
 	}
 }
 
+// SendInv sends 'inv' command with inventory details.
 func SendInv(address, kind string, items [][]byte) {
 	inventory := Inv{nodeAddress, kind, items}
 	payload := GobEncode(inventory)
@@ -149,6 +162,7 @@ func SendInv(address, kind string, items [][]byte) {
 	SendData(address, request)
 }
 
+// SendGetBlocks sends 'getblocks' command to a specified address.
 func SendGetBlocks(address string) {
 	payload := GobEncode(GetBlocks{nodeAddress})
 	request := append(CmdToBytes("getblocks"), payload...)
@@ -156,6 +170,7 @@ func SendGetBlocks(address string) {
 	SendData(address, request)
 }
 
+// SendGetData sends 'getdata' command to a specified address.
 func SendGetData(address, kind string, id []byte) {
 	payload := GobEncode(GetData{nodeAddress, kind, id})
 	request := append(CmdToBytes("getdata"), payload...)
@@ -163,6 +178,7 @@ func SendGetData(address, kind string, id []byte) {
 	SendData(address, request)
 }
 
+// SendTx sends a transaction to a specified address.
 func SendTx(addr string, tnx *blockchain.Transaction) {
 	data := Tx{nodeAddress, tnx.Serialize()}
 	payload := GobEncode(data)
@@ -171,6 +187,7 @@ func SendTx(addr string, tnx *blockchain.Transaction) {
 	SendData(addr, request)
 }
 
+// SendVersion sends 'version' command to a specified address.
 func SendVersion(addr string, chain *blockchain.BlockChain) {
 	bestHeight := chain.GetBestHeight()
 	payload := GobEncode(Version{version, bestHeight, nodeAddress})
@@ -180,6 +197,9 @@ func SendVersion(addr string, chain *blockchain.BlockChain) {
 	SendData(addr, request)
 }
 
+// Handlers for different types of received messages
+
+// HandleAddr handles 'addr' command.
 func HandleAddr(request []byte) {
 	var buff bytes.Buffer
 	var payload Addr
@@ -189,14 +209,14 @@ func HandleAddr(request []byte) {
 	err := dec.Decode(&payload)
 	if err != nil {
 		log.Panic(err)
-
 	}
 
 	KnownNodes = append(KnownNodes, payload.AddrList...)
-	fmt.Printf("существует %d известных узлов\n", len(KnownNodes))
+	fmt.Printf("there are %d known nodes", len(KnownNodes))
 	RequestBlocks()
 }
 
+// HandleBlock handles 'block' command.
 func HandleBlock(request []byte, chain *blockchain.BlockChain) {
 	var buff bytes.Buffer
 	var payload Block
@@ -214,7 +234,7 @@ func HandleBlock(request []byte, chain *blockchain.BlockChain) {
 	fmt.Println("Recevied a new block!")
 	chain.AddBlock(block)
 
-	fmt.Printf("Добавленный блок %x\n", block.Hash)
+	fmt.Printf("Added Block %x\n", block.Hash)
 
 	if len(blocksInTransit) > 0 {
 		blockHash := blocksInTransit[0]
@@ -227,10 +247,12 @@ func HandleBlock(request []byte, chain *blockchain.BlockChain) {
 	}
 }
 
+// HandleInv handles 'inv' (inventory) command by processing the inventory of blocks or transactions received from another node.
 func HandleInv(request []byte, chain *blockchain.BlockChain) {
 	var buff bytes.Buffer
 	var payload Inv
 
+	// Decoding the payload from the request
 	buff.Write(request[commandLength:])
 	dec := gob.NewDecoder(&buff)
 	err := dec.Decode(&payload)
@@ -238,14 +260,17 @@ func HandleInv(request []byte, chain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
+	// Logging received inventory details
 	fmt.Printf("Recevied inventory with %d %s\n", len(payload.Items), payload.Type)
 
+	// Handling block type inventory
 	if payload.Type == "block" {
 		blocksInTransit = payload.Items
 
 		blockHash := payload.Items[0]
 		SendGetData(payload.AddrFrom, "block", blockHash)
 
+		// Filtering out the requested block from blocksInTransit
 		newInTransit := [][]byte{}
 		for _, b := range blocksInTransit {
 			if bytes.Compare(b, blockHash) != 0 {
@@ -255,19 +280,23 @@ func HandleInv(request []byte, chain *blockchain.BlockChain) {
 		blocksInTransit = newInTransit
 	}
 
+	// Handling transaction type inventory
 	if payload.Type == "tx" {
 		txID := payload.Items[0]
 
+		// Requesting the transaction data if it's not in the memory pool
 		if memoryPool[hex.EncodeToString(txID)].ID == nil {
 			SendGetData(payload.AddrFrom, "tx", txID)
 		}
 	}
 }
 
+// HandleGetBlocks handles 'getblocks' command by sending an inventory of all block hashes to the requester.
 func HandleGetBlocks(request []byte, chain *blockchain.BlockChain) {
 	var buff bytes.Buffer
 	var payload GetBlocks
 
+	// Decoding the payload from the request
 	buff.Write(request[commandLength:])
 	dec := gob.NewDecoder(&buff)
 	err := dec.Decode(&payload)
@@ -275,14 +304,17 @@ func HandleGetBlocks(request []byte, chain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
+	// Getting all block hashes from the blockchain and sending them
 	blocks := chain.GetBlockHashes()
 	SendInv(payload.AddrFrom, "block", blocks)
 }
 
+// HandleGetData handles 'getdata' command by sending requested block or transaction data to the requester.
 func HandleGetData(request []byte, chain *blockchain.BlockChain) {
 	var buff bytes.Buffer
 	var payload GetData
 
+	// Decoding the payload from the request
 	buff.Write(request[commandLength:])
 	dec := gob.NewDecoder(&buff)
 	err := dec.Decode(&payload)
@@ -290,6 +322,7 @@ func HandleGetData(request []byte, chain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
+	// Sending the requested block
 	if payload.Type == "block" {
 		block, err := chain.GetBlock([]byte(payload.ID))
 		if err != nil {
@@ -299,6 +332,7 @@ func HandleGetData(request []byte, chain *blockchain.BlockChain) {
 		SendBlock(payload.AddrFrom, &block)
 	}
 
+	// Sending the requested transaction
 	if payload.Type == "tx" {
 		txID := hex.EncodeToString(payload.ID)
 		tx := memoryPool[txID]
@@ -307,10 +341,12 @@ func HandleGetData(request []byte, chain *blockchain.BlockChain) {
 	}
 }
 
+// HandleTx handles 'tx' (transaction) command by adding the transaction to the memory pool and propagating it.
 func HandleTx(request []byte, chain *blockchain.BlockChain) {
 	var buff bytes.Buffer
 	var payload Tx
 
+	// Decoding the payload from the request
 	buff.Write(request[commandLength:])
 	dec := gob.NewDecoder(&buff)
 	err := dec.Decode(&payload)
@@ -318,6 +354,7 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
+	// Adding the transaction to the memory pool
 	txData := payload.Transaction
 	tx := blockchain.DeserializeTransaction(txData)
 	memoryPool[hex.EncodeToString(tx.ID)] = tx
@@ -337,9 +374,11 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 	}
 }
 
+// MineTx mines a new block with transactions from the memory pool
 func MineTx(chain *blockchain.BlockChain) {
 	var txs []*blockchain.Transaction
 
+	// Verifying and collecting valid transactions
 	for id := range memoryPool {
 		fmt.Printf("tx: %s\n", memoryPool[id].ID)
 		tx := memoryPool[id]
@@ -349,7 +388,7 @@ func MineTx(chain *blockchain.BlockChain) {
 	}
 
 	if len(txs) == 0 {
-		fmt.Println("Все транзакции недействительны")
+		fmt.Println("All transactions are invalid")
 		return
 	}
 
@@ -360,7 +399,7 @@ func MineTx(chain *blockchain.BlockChain) {
 	UTXOSet := blockchain.UTXOSet{chain}
 	UTXOSet.Reindex()
 
-	fmt.Println("Новый блок добыт")
+	fmt.Println("A new block has been mined")
 
 	for _, tx := range txs {
 		txID := hex.EncodeToString(tx.ID)
@@ -378,10 +417,12 @@ func MineTx(chain *blockchain.BlockChain) {
 	}
 }
 
+// HandleVersion handles 'version' command, comparing the blockchain's height and syncing if necessary.
 func HandleVersion(request []byte, chain *blockchain.BlockChain) {
 	var buff bytes.Buffer
 	var payload Version
 
+	// Decoding the payload from the request
 	buff.Write(request[commandLength:])
 	dec := gob.NewDecoder(&buff)
 	err := dec.Decode(&payload)
@@ -389,20 +430,25 @@ func HandleVersion(request []byte, chain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
+	// Comparing blockchain heights and taking appropriate action
 	bestHeight := chain.GetBestHeight()
 	otherHeight := payload.BestHeight
 
+	// Requesting blocks from a node with a higher blockchain
 	if bestHeight < otherHeight {
 		SendGetBlocks(payload.AddrFrom)
 	} else if bestHeight > otherHeight {
+		// Sending version to a node with a lower blockchain
 		SendVersion(payload.AddrFrom, chain)
 	}
 
+	// Adding new node to known nodes list if not already known
 	if !NodeIsKnown(payload.AddrFrom) {
 		KnownNodes = append(KnownNodes, payload.AddrFrom)
 	}
 }
 
+// HandleConnection manages incoming connections and routes commands to appropriate handlers.
 func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 	req, err := ioutil.ReadAll(conn)
 	defer conn.Close()
@@ -410,6 +456,8 @@ func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 	if err != nil {
 		log.Panic(err)
 	}
+
+	// Routing the command to the corresponding handler
 	command := BytesToCmd(req[:commandLength])
 	fmt.Printf("Received %s command\n", command)
 
@@ -434,6 +482,7 @@ func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 
 }
 
+// StartServer initializes a server for the blockchain node.
 func StartServer(nodeID, minerAddress string) {
 	nodeAddress = fmt.Sprintf("localhost:%s", nodeID)
 	mineAddress = minerAddress
@@ -443,13 +492,17 @@ func StartServer(nodeID, minerAddress string) {
 	}
 	defer ln.Close()
 
+	// Continues an existing blockchain or creates a new one
 	chain := blockchain.ContinueBlockChain(nodeID)
 	defer chain.Database.Close()
 	go CloseDB(chain)
 
+	// Syncs with the main node if not the main node itself
 	if nodeAddress != KnownNodes[0] {
 		SendVersion(KnownNodes[0], chain)
 	}
+
+	// Listening for incoming connections
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -460,6 +513,7 @@ func StartServer(nodeID, minerAddress string) {
 	}
 }
 
+// GobEncode encodes data into bytes using GOB encoding.
 func GobEncode(data interface{}) []byte {
 	var buff bytes.Buffer
 
@@ -472,6 +526,7 @@ func GobEncode(data interface{}) []byte {
 	return buff.Bytes()
 }
 
+// NodeIsKnown checks if a node is already known.
 func NodeIsKnown(addr string) bool {
 	for _, node := range KnownNodes {
 		if node == addr {
@@ -482,9 +537,11 @@ func NodeIsKnown(addr string) bool {
 	return false
 }
 
+// CloseDB gracefully closes the database connection on termination signals.
 func CloseDB(chain *blockchain.BlockChain) {
 	d := death.NewDeath(syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 
+	// Function to close the database when the application terminates
 	d.WaitForDeathWithFunc(func() {
 		defer os.Exit(1)
 		defer runtime.Goexit()

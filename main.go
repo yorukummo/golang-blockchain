@@ -1,3 +1,4 @@
+// Package main is used to run the program.
 package main
 
 import (
@@ -7,7 +8,7 @@ import (
 )
 
 func main() {
-	// Используем defer, чтобы гарантировать выход из программы с кодом 0 при завершении main().
+	// We use defer to ensure that the program exits with code 0 when main() completes.
 	defer os.Exit(0)
 
 	cmd := cli.CommandLine{}
