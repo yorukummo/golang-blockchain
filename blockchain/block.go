@@ -1,3 +1,4 @@
+// Package blockchain represents the logic for block, chain_iter, merkle, proof, transaction, tx, utxo
 package blockchain
 
 import (

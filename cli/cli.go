@@ -1,3 +1,4 @@
+// Package cli reads user input from the keyboard.
 package cli
 
 import (
@@ -14,6 +15,7 @@ import (
 
 type CommandLine struct{}
 
+// printUsage prints the list of commands available.
 func (cli *CommandLine) printUsage() {
 	fmt.Println("Usage:")
 	fmt.Println(" getbalance -address ADDRESS - get the balance for an address")
@@ -26,6 +28,7 @@ func (cli *CommandLine) printUsage() {
 	fmt.Println(" startnode -miner ADDRESS - Start a node with ID specified in NODE_ID env. var. -miner enables mining")
 }
 
+// validateArgs validates if the necessary command-line arguments are provided.
 func (cli *CommandLine) validateArgs() {
 	if len(os.Args) < 2 {
 		cli.printUsage()
@@ -33,9 +36,9 @@ func (cli *CommandLine) validateArgs() {
 	}
 }
 
+// StartNode is used to start the network module.
 func (cli *CommandLine) StartNode(nodeID, minerAddress string) {
 	fmt.Printf("Starting Node %s\n", nodeID)
-
 	if len(minerAddress) > 0 {
 		if wallet.ValidateAddress(minerAddress) {
 			fmt.Println("Mining is on. Address to receive rewards: ", minerAddress)
@@ -46,6 +49,7 @@ func (cli *CommandLine) StartNode(nodeID, minerAddress string) {
 	network.StartServer(nodeID, minerAddress)
 }
 
+// reindexUTXO rebuilds the UTXO set.
 func (cli *CommandLine) reindexUTXO(nodeID string) {
 	chain := blockchain.ContinueBlockChain(nodeID)
 	defer chain.Database.Close()
@@ -56,6 +60,7 @@ func (cli *CommandLine) reindexUTXO(nodeID string) {
 	fmt.Printf("Done! There are %d transactions in the UTXO set.\n", count)
 }
 
+// listAddresses lists all addresses in the wallet file for a given node ID.
 func (cli *CommandLine) listAddresses(nodeID string) {
 	wallets, _ := wallet.CreateWallets(nodeID)
 	addresses := wallets.GetAllAddresses()
@@ -63,9 +68,9 @@ func (cli *CommandLine) listAddresses(nodeID string) {
 	for _, address := range addresses {
 		fmt.Println(address)
 	}
-
 }
 
+// createWallet creates a new wallet for a given node ID.
 func (cli *CommandLine) createWallet(nodeID string) {
 	wallets, _ := wallet.CreateWallets(nodeID)
 	address := wallets.AddWallet()
@@ -74,6 +79,7 @@ func (cli *CommandLine) createWallet(nodeID string) {
 	fmt.Printf("New address is: %s\n", address)
 }
 
+// printChain prints all the blocks in the blockchain for a given node ID.
 func (cli *CommandLine) printChain(nodeID string) {
 	chain := blockchain.ContinueBlockChain(nodeID)
 	defer chain.Database.Close()
@@ -97,6 +103,7 @@ func (cli *CommandLine) printChain(nodeID string) {
 	}
 }
 
+// createBlockChain creates a blockchain and sends the genesis reward to a specified address.
 func (cli *CommandLine) createBlockChain(address, nodeID string) {
 	if !wallet.ValidateAddress(address) {
 		log.Panic("Address is not Valid")
@@ -110,6 +117,7 @@ func (cli *CommandLine) createBlockChain(address, nodeID string) {
 	fmt.Println("Finished!")
 }
 
+// getBalance gets the balance for a specified address.
 func (cli *CommandLine) getBalance(address, nodeID string) {
 	if !wallet.ValidateAddress(address) {
 		log.Panic("Address is not Valid")
@@ -130,6 +138,7 @@ func (cli *CommandLine) getBalance(address, nodeID string) {
 	fmt.Printf("Balance of %s: %d\n", address, balance)
 }
 
+// send performs a transaction from one address to another.
 func (cli *CommandLine) send(from, to string, amount int, nodeID string, mineNow bool) {
 	if !wallet.ValidateAddress(to) {
 		log.Panic("Address is not Valid")
@@ -161,6 +170,7 @@ func (cli *CommandLine) send(from, to string, amount int, nodeID string, mineNow
 	fmt.Println("Success!")
 }
 
+// Run parses the command-line arguments and executes the corresponding function.
 func (cli *CommandLine) Run() {
 	cli.validateArgs()
 
@@ -170,6 +180,7 @@ func (cli *CommandLine) Run() {
 		runtime.Goexit()
 	}
 
+	// Flag parsing for different commands
 	getBalanceCmd := flag.NewFlagSet("getbalance", flag.ExitOnError)
 	createBlockchainCmd := flag.NewFlagSet("createblockchain", flag.ExitOnError)
 	sendCmd := flag.NewFlagSet("send", flag.ExitOnError)
@@ -179,6 +190,7 @@ func (cli *CommandLine) Run() {
 	reindexUTXOCmd := flag.NewFlagSet("reindexutxo", flag.ExitOnError)
 	startNodeCmd := flag.NewFlagSet("startnode", flag.ExitOnError)
 
+	// Command-specific flags
 	getBalanceAddress := getBalanceCmd.String("address", "", "The address to get balance for")
 	createBlockchainAddress := createBlockchainCmd.String("address", "", "The address to send genesis block reward to")
 	sendFrom := sendCmd.String("from", "", "Source wallet address")
@@ -187,6 +199,7 @@ func (cli *CommandLine) Run() {
 	sendMine := sendCmd.Bool("mine", false, "Mine immediately on the same node")
 	startNodeMiner := startNodeCmd.String("miner", "", "Enable mining mode and send reward to ADDRESS")
 
+	// Parsing the arguments based on the command
 	switch os.Args[1] {
 	case "reindexutxo":
 		err := reindexUTXOCmd.Parse(os.Args[2:])
@@ -233,6 +246,7 @@ func (cli *CommandLine) Run() {
 		runtime.Goexit()
 	}
 
+	// Executing the corresponding function based on the parsed command
 	if getBalanceCmd.Parsed() {
 		if *getBalanceAddress == "" {
 			getBalanceCmd.Usage()
